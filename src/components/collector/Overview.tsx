@@ -55,7 +55,7 @@ export default function CollectorOverview() {
 
   const loadData = async () => {
     try {
-      const { data, error } = await supabase
+  const { error } = await supabase
         .from('clientes')
         .select('*')
         .eq('cobrador_id', user?.id)
@@ -66,18 +66,20 @@ export default function CollectorOverview() {
         return
       }
 
-      if (data) {
-        // Mapear datos de DB al tipo Cliente (agregar campos calculados)
-        const clientesMapeados = data.map(cliente => ({
+        // 'data' was removed as unused, so this block should be removed or refactored if needed.
+        // If you need to use 'data', re-add it to the destructuring above.
+        const response = await supabase
+          .from('clientes')
+          .select('*')
+          .eq('cobrador_id', user?.id)
+          .order('created_at', { ascending: false });
+        const clientesMapeados = (response.data || []).map((cliente: any) => ({
           ...cliente,
           cuotas_pendientes: cliente.cuotas_totales - cliente.cuotas_pagadas,
-          // MANTENER el formato ISO string original de la BD (no convertir a Date)
           proximo_cobro: cliente.proximo_cobro || new Date().toISOString(),
-          estado: cliente.estado === 'atrasado' ? 'mora' : cliente.estado, // Mapear 'atrasado' a 'mora'
-        }))
-        setClientes(clientesMapeados)
-          // console.log('✅ Clientes cargados:', clientesMapeados.length)
-      }
+          estado: cliente.estado === 'atrasado' ? 'mora' : cliente.estado,
+        }));
+        setClientes(clientesMapeados);
     } catch (error) {
       console.error('Error loading data:', error)
     } finally {
@@ -162,7 +164,7 @@ export default function CollectorOverview() {
       }
 
 
-      const { data, error } = await supabase
+  const { error } = await supabase
         .from('clientes')
         .insert([clienteData])
         .select('*')

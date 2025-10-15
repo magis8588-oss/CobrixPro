@@ -370,7 +370,6 @@ export default function ClientesView() {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Clientes</h1>
           <p className="text-gray-600 mt-1">Vista general de todos los clientes del sistema</p>
         </div>
-
         {user?.role === 'admin' && (
           <div className="w-full sm:w-auto">
             <button onClick={() => setShowCreateModal(true)} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
@@ -379,7 +378,6 @@ export default function ClientesView() {
           </div>
         )}
       </div>
-
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
@@ -433,7 +431,6 @@ export default function ClientesView() {
           </div>
         </div>
       </div>
-
       {/* Filtros */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -448,7 +445,6 @@ export default function ClientesView() {
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             />
           </div>
-
           {/* Filtro por Estado */}
           <div>
             <select
@@ -463,7 +459,6 @@ export default function ClientesView() {
               <option value="completado">Completado</option>
             </select>
           </div>
-
           {/* Filtro por Cobrador */}
           <div>
             <select
@@ -479,7 +474,6 @@ export default function ClientesView() {
           </div>
         </div>
       </div>
-
       {/* Tabla de Clientes */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         {loading ? (
@@ -512,11 +506,12 @@ export default function ClientesView() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Saldo</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Próximo Cobro</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {clientesFiltrados.map((cliente) => {
-                    const cuotasPendientes = cliente.cuotas_totales - cliente.cuotas_pagadas
+                    const cuotasPendientes = cliente.cuotas_totales - cliente.cuotas_pagadas;
                     return (
                       <tr key={cliente.id} className="hover:bg-gray-50 transition">
                         <td className="px-4 py-3">
@@ -558,10 +553,9 @@ export default function ClientesView() {
                           <div className="flex items-center gap-1 text-sm text-gray-700">
                             <Calendar className="w-4 h-4 text-gray-400" />
                             {(() => {
-                              // Parsear fecha YYYY-MM-DD sin conversión de zona horaria
-                              const [year, month, day] = cliente.proximo_cobro.split('T')[0].split('-').map(Number)
-                              const fecha = new Date(year, month - 1, day)
-                              return fecha.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })
+                              const [year, month, day] = cliente.proximo_cobro.split('T')[0].split('-').map(Number);
+                              const fecha = new Date(year, month - 1, day);
+                              return fecha.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
                             })()}
                           </div>
                         </td>
@@ -588,7 +582,85 @@ export default function ClientesView() {
                             </button>
                           </div>
                         </td>
-      {/* Modal de Edición */}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {/* Vista Móvil/Tablet */}
+            <div className="lg:hidden divide-y divide-gray-200">
+              {clientesFiltrados.map((cliente) => {
+                const cuotasPendientes = cliente.cuotas_totales - cliente.cuotas_pagadas;
+                return (
+                  <div key={cliente.id} className="p-4 hover:bg-gray-50 transition">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-900">{cliente.nombre}</h3>
+                        <p className="text-sm text-gray-500">{cliente.cedula}</p>
+                      </div>
+                      <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full border ${getEstadoBadge(cliente.estado)}`}>
+                        {getEstadoTexto(cliente.estado)}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600 flex items-center gap-1">
+                          <User className="w-4 h-4" /> Cobrador:
+                        </span>
+                        <span className="font-medium text-gray-900">{cliente.cobrador_nombre}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">Préstamo:</span>
+                        <span className="font-semibold text-gray-900">
+                          {monedaSymbol}{cliente.monto_prestamo.toLocaleString('es-CO')}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">Tipo:</span>
+                        <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${getTipoCobroColor(cliente.tipo_cobro)}`}>
+                          {cliente.tipo_cobro.charAt(0).toUpperCase() + cliente.tipo_cobro.slice(1)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">Cuotas:</span>
+                        <span className="font-medium text-gray-900">
+                          {cliente.cuotas_pagadas}/{cliente.cuotas_totales} <span className="text-gray-500">(Faltan {cuotasPendientes})</span>
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">Saldo:</span>
+                        <span className="font-semibold text-orange-600">
+                          {monedaSymbol}{cliente.saldo_pendiente.toLocaleString('es-CO')}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-100">
+                        <span className="text-gray-600 flex items-center gap-1">
+                          <Calendar className="w-4 h-4" /> Próximo cobro:
+                        </span>
+                        <span className="font-medium text-gray-900">
+                          {(() => {
+                            const [year, month, day] = cliente.proximo_cobro.split('T')[0].split('-').map(Number);
+                            const fecha = new Date(year, month - 1, day);
+                            return fecha.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+                          })()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
+      {/* Contador de resultados */}
+      {!loading && clientesFiltrados.length > 0 && (
+        <div className="text-center text-sm text-gray-600">
+          Mostrando {clientesFiltrados.length} de {clientes.length} clientes
+        </div>
+      )}
+      {/* Modales y Alertas fuera del render de filas */}
       {showEditModal && clienteSeleccionado && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg w-full max-w-md">
@@ -596,20 +668,17 @@ export default function ClientesView() {
               <h2 className="text-xl font-bold text-gray-900">Editar Cliente</h2>
               <button
                 onClick={() => {
-                  setShowEditModal(false)
-                  setClienteSeleccionado(null)
+                  setShowEditModal(false);
+                  setClienteSeleccionado(null);
                 }}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <X size={24} />
               </button>
             </div>
-
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nombre Completo *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo *</label>
                 <input
                   type="text"
                   value={editNombre}
@@ -618,11 +687,8 @@ export default function ClientesView() {
                   placeholder="Nombre del cliente"
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Cédula *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cédula *</label>
                 <input
                   type="text"
                   value={editCedula}
@@ -631,11 +697,8 @@ export default function ClientesView() {
                   placeholder="Número de cédula"
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Teléfono
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
                 <input
                   type="text"
                   value={editTelefono}
@@ -644,11 +707,8 @@ export default function ClientesView() {
                   placeholder="Número de teléfono"
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Dirección
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
                 <input
                   type="text"
                   value={editDireccion}
@@ -657,7 +717,6 @@ export default function ClientesView() {
                   placeholder="Dirección completa"
                 />
               </div>
-
               {/* Asignar cobrador (admin) */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Asignar Cobrador</label>
@@ -672,19 +731,17 @@ export default function ClientesView() {
                   ))}
                 </select>
               </div>
-
               <div className="bg-gray-50 rounded-lg p-3">
                 <p className="text-xs text-gray-600">
                   <strong>Nota:</strong> Solo se pueden editar los datos personales. Los datos del préstamo no se pueden modificar.
                 </p>
               </div>
             </div>
-
             <div className="flex gap-3 p-6 border-t border-gray-200">
               <button
                 onClick={() => {
-                  setShowEditModal(false)
-                  setClienteSeleccionado(null)
+                  setShowEditModal(false);
+                  setClienteSeleccionado(null);
                 }}
                 className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
               >
@@ -700,8 +757,6 @@ export default function ClientesView() {
           </div>
         </div>
       )}
-
-      {/* Modal de Confirmación de Eliminación */}
       {showDeleteModal && clienteSeleccionado && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg w-full max-w-md">
@@ -709,27 +764,21 @@ export default function ClientesView() {
               <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
                 <Trash2 className="w-6 h-6 text-red-600" />
               </div>
-              
-              <h2 className="text-xl font-bold text-gray-900 text-center mb-2">
-                ¿Eliminar Cliente?
-              </h2>
-              
+              <h2 className="text-xl font-bold text-gray-900 text-center mb-2">¿Eliminar Cliente?</h2>
               <p className="text-gray-600 text-center mb-4">
                 Estás a punto de eliminar a <strong>{clienteSeleccionado.nombre}</strong>.
               </p>
-
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-6">
                 <p className="text-sm text-red-800">
                   ⚠️ <strong>Esta acción no se puede deshacer.</strong> Se eliminarán todos los datos del cliente incluyendo su historial de pagos.
                 </p>
               </div>
             </div>
-
             <div className="flex gap-3 p-6 border-t border-gray-200">
               <button
                 onClick={() => {
-                  setShowDeleteModal(false)
-                  setClienteSeleccionado(null)
+                  setShowDeleteModal(false);
+                  setClienteSeleccionado(null);
                 }}
                 className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
               >
@@ -745,8 +794,6 @@ export default function ClientesView() {
           </div>
         </div>
       )}
-
-      {/* Alert Modal */}
       <AlertModal
         isOpen={alertState.open}
         onClose={() => setAlertState({ ...alertState, open: false })}
@@ -754,7 +801,6 @@ export default function ClientesView() {
         title={alertState.title}
         message={alertState.message}
       />
-      {/* Modal Crear Cliente (Legado) - Admin */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg w-full max-w-2xl overflow-y-auto max-h-[90vh]">
@@ -762,7 +808,6 @@ export default function ClientesView() {
               <h2 className="text-xl font-bold text-gray-900">Crear Cliente (Legado)</h2>
               <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
             </div>
-
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -781,7 +826,6 @@ export default function ClientesView() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
                   <input type="text" value={createDireccion} onChange={e => setCreateDireccion(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Monto del Préstamo *</label>
                   <input type="number" value={createMonto} onChange={e => setCreateMonto(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
@@ -794,22 +838,18 @@ export default function ClientesView() {
                     <option value="quincenal">Quincenal</option>
                   </select>
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Cuotas pagadas</label>
                   <input type="number" min={0} value={createCuotasPagadas} onChange={e => setCreateCuotasPagadas(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Fecha inicio (YYYY-MM-DD)</label>
                   <input type="date" value={createFechaInicio} onChange={e => setCreateFechaInicio(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Próximo cobro (YYYY-MM-DD)</label>
                   <input type="date" value={createProximoCobro} onChange={e => setCreateProximoCobro(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Asignar Cobrador</label>
                   <select value={createCobradorId} onChange={e => setCreateCobradorId(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg">
@@ -821,7 +861,6 @@ export default function ClientesView() {
                 </div>
               </div>
             </div>
-
             <div className="flex gap-3 p-6 border-t border-gray-200">
               <button onClick={() => setShowCreateModal(false)} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg">Cancelar</button>
               <button onClick={handleCreateLegacy} className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg">Crear Cliente Legado</button>
@@ -829,93 +868,6 @@ export default function ClientesView() {
           </div>
         </div>
       )}
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Vista Móvil/Tablet */}
-            <div className="lg:hidden divide-y divide-gray-200">
-              {clientesFiltrados.map((cliente) => {
-                const cuotasPendientes = cliente.cuotas_totales - cliente.cuotas_pagadas
-                return (
-                  <div key={cliente.id} className="p-4 hover:bg-gray-50 transition">
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900">{cliente.nombre}</h3>
-                        <p className="text-sm text-gray-500">{cliente.cedula}</p>
-                      </div>
-                      <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full border ${getEstadoBadge(cliente.estado)}`}>
-                        {getEstadoTexto(cliente.estado)}
-                      </span>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600 flex items-center gap-1">
-                          <User className="w-4 h-4" /> Cobrador:
-                        </span>
-                        <span className="font-medium text-gray-900">{cliente.cobrador_nombre}</span>
-                      </div>
-
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600">Préstamo:</span>
-                        <span className="font-semibold text-gray-900">
-                          {monedaSymbol}{cliente.monto_prestamo.toLocaleString('es-CO')}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600">Tipo:</span>
-                        <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${getTipoCobroColor(cliente.tipo_cobro)}`}>
-                          {cliente.tipo_cobro.charAt(0).toUpperCase() + cliente.tipo_cobro.slice(1)}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600">Cuotas:</span>
-                        <span className="font-medium text-gray-900">
-                          {cliente.cuotas_pagadas}/{cliente.cuotas_totales} <span className="text-gray-500">(Faltan {cuotasPendientes})</span>
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600">Saldo:</span>
-                        <span className="font-semibold text-orange-600">
-                          {monedaSymbol}{cliente.saldo_pendiente.toLocaleString('es-CO')}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-100">
-                        <span className="text-gray-600 flex items-center gap-1">
-                          <Calendar className="w-4 h-4" /> Próximo cobro:
-                        </span>
-                        <span className="font-medium text-gray-900">
-                          {(() => {
-                            // Parsear fecha YYYY-MM-DD sin conversión de zona horaria
-                            const [year, month, day] = cliente.proximo_cobro.split('T')[0].split('-').map(Number)
-                            const fecha = new Date(year, month - 1, day)
-                            return fecha.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
-                          })()}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Contador de resultados */}
-      {!loading && clientesFiltrados.length > 0 && (
-        <div className="text-center text-sm text-gray-600">
-          Mostrando {clientesFiltrados.length} de {clientes.length} clientes
-        </div>
-      )}
     </div>
-  )
+  );
 }
