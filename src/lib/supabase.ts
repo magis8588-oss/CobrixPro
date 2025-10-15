@@ -14,4 +14,4 @@ if (!supabaseUrl || !supabaseAnonKey) {
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // Log de conexión
-console.log(`☁️ Conectado a Supabase: ${supabaseUrl}`)
+// console.log(`☁️ Conectado a Supabase: ${supabaseUrl}`)

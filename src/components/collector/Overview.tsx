@@ -76,7 +76,7 @@ export default function CollectorOverview() {
           estado: cliente.estado === 'atrasado' ? 'mora' : cliente.estado, // Mapear 'atrasado' a 'mora'
         }))
         setClientes(clientesMapeados)
-        console.log('✅ Clientes cargados:', clientesMapeados.length)
+          // console.log('✅ Clientes cargados:', clientesMapeados.length)
       }
     } catch (error) {
       console.error('Error loading data:', error)
@@ -142,10 +142,6 @@ export default function CollectorOverview() {
       const fechaProximoCobroString = fechaProximoCobroISO.split('T')[0]
 
       // Logs de debugging
-      console.log('🔍 DEBUG - Creando cliente:')
-      console.log('  Hoy:', fechaInicioString)
-      console.log('  Tipo cobro:', tipoCobro)
-      console.log('  Fecha próximo cobro:', fechaProximoCobroString)
 
       // Preparar datos para insertar (estructura de DB real)
       const clienteData = {
@@ -165,7 +161,6 @@ export default function CollectorOverview() {
         cobrador_id: user?.id || '',
       }
 
-      console.log('📝 Intentando guardar cliente:', clienteData)
 
       const { data, error } = await supabase
         .from('clientes')
@@ -184,7 +179,6 @@ export default function CollectorOverview() {
         return
       }
 
-      console.log('✅ Cliente guardado exitosamente:', data)
       
       // Recargar datos
       await loadData()
@@ -386,21 +380,12 @@ export default function CollectorOverview() {
 
   // Filtrar clientes para cobrar hoy
   const hoy = new Date()
-  // Construir fecha YYYY-MM-DD sin conversión de zona horaria
-  const fechaHoyString = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`
-  
-  console.log('🔍 DEBUG - Filtrando cobros de hoy:')
-  console.log('  Fecha hoy (string):', fechaHoyString)
-  console.log('  Día de hoy:', hoy.toLocaleDateString('es-CO'))
+ const fechaHoyString = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`
   
   const clientesParaCobrarHoy = clientes.filter(cliente => {
     // Extraer solo la parte de la fecha (YYYY-MM-DD) sin conversión de zona horaria
     const fechaCobroString = cliente.proximo_cobro.split('T')[0]
     
-    console.log(`  Cliente: ${cliente.nombre}`)
-    console.log(`    proximo_cobro DB:`, fechaCobroString)
-    console.log(`    fecha hoy:`, fechaHoyString)
-    console.log(`    ¿Son iguales?:`, fechaCobroString === fechaHoyString)
     
     // Comparar las fechas como strings YYYY-MM-DD (sin conversión de zona horaria)
     return fechaCobroString === fechaHoyString && cliente.cuotas_pendientes > 0
@@ -419,12 +404,12 @@ export default function CollectorOverview() {
     return false
   })
   const stats = {
-    totalClientes: clientes.length,
-    clientesAlDia: clientes.filter(c => c.estado === 'al_dia' || c.estado === 'renovado').length,
-    clientesEnMora: clientes.filter(c => c.estado === 'mora').length,
-    clientesActivos: clientesActivos.length,
-    renovadosEsteMes: renovadosEsteMes.length,
-    cobrosHoy: clientesParaCobrarHoy.length,
+     totalClientes: clientes.length,
+     clientesAlDia: clientes.filter(c => c.estado === 'al_dia' || c.estado === 'renovado').length,
+     clientesEnMora: clientes.filter(c => c.estado === 'mora').length,
+     clientesActivos: clientesActivos.length,
+     renovadosEsteMes: renovadosEsteMes.length,
+     cobrosHoy: clientesParaCobrarHoy.length,
   }
 
   if (loading || configLoading) {
