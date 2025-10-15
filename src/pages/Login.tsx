@@ -1,4 +1,5 @@
-import { useState } from 'react'
+
+import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Lock, Mail, AlertCircle } from 'lucide-react'
@@ -12,10 +13,12 @@ export default function Login() {
   const navigate = useNavigate()
 
   // Redirigir si ya está autenticado
-  if (user) {
-    const redirectPath = user.role === 'admin' ? '/admin' : '/collector'
-    navigate(redirectPath, { replace: true })
-  }
+  useEffect(() => {
+    if (user) {
+      const redirectPath = user.role === 'admin' ? '/admin' : '/collector'
+      navigate(redirectPath, { replace: true })
+    }
+  }, [user, navigate])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
