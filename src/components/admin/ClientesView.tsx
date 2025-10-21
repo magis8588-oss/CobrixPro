@@ -141,6 +141,36 @@ export default function ClientesView() {
       return
     }
 
+    const cedulaTrimmed = createCedula.trim()
+    // Validar que no exista un cliente con la misma cédula y con cobro activo
+    try {
+      const { data: existingActive, error: checkError } = await supabase
+        .from('clientes')
+        .select('id')
+        .eq('cedula', cedulaTrimmed)
+        .neq('estado', 'completado')
+
+      if (checkError) {
+        console.error('Error al verificar cédula:', checkError)
+        setAlertState({ open: true, type: 'error', title: 'Error de Verificación', message: 'No se pudo comprobar la cédula en la base de datos.' })
+        return
+      }
+
+      if (existingActive && existingActive.length > 0) {
+        setAlertState({
+          open: true,
+          type: 'error',
+          title: 'Cliente ya existe',
+          message: 'Ya existe un cliente con esa cédula y con un cobro activo. Revisa la lista de clientes.'
+        })
+        return
+      }
+    } catch (err) {
+      console.error('Error verificando cédula:', err)
+      setAlertState({ open: true, type: 'error', title: 'Error', message: 'No se pudo verificar la cédula.' })
+      return
+    }
+
     const monto = parseFloat(createMonto)
     if (isNaN(monto) || monto <= 0) {
       setAlertState({ open: true, type: 'warning', title: 'Monto inválido', message: 'El monto debe ser mayor a cero' })
@@ -222,7 +252,7 @@ export default function ClientesView() {
   }
 
   const handleGuardarEdicion = async () => {
-    if (!clienteSeleccionado) return
+    if (!clienteSeleccionado) return;
 
     if (!editNombre.trim() || !editCedula.trim()) {
       setAlertState({
@@ -230,49 +260,72 @@ export default function ClientesView() {
         type: 'warning',
         title: 'Campos requeridos',
         message: 'El nombre y la cédula son obligatorios'
-      })
-      return
+      });
+      return;
     }
 
     try {
+      // Validar cédula única si fue cambiada
+      const cedulaTrimmed = editCedula.trim();
+      if (cedulaTrimmed !== clienteSeleccionado.cedula) {
+        const { data: existingClient, error: checkError } = await supabase
+          .from('clientes')
+          .select('id')
+          .eq('cedula', cedulaTrimmed)
+          .maybeSingle();
+        if (checkError) {
+          setAlertState({ open: true, type: 'error', title: 'Error de Verificación', message: 'No se pudo comprobar la cédula en la base de datos.' });
+          return;
+        }
+        if (existingClient && existingClient.id !== clienteSeleccionado.id) {
+          setAlertState({
+            open: true,
+            type: 'error',
+            title: 'Cédula ya registrada',
+            message: `Ya existe otro cliente con la cédula ${cedulaTrimmed}.`
+          });
+          return;
+        }
+      }
+
       const updatePayload: any = {
         nombre: editNombre.trim(),
-        cedula: editCedula.trim(),
+        cedula: cedulaTrimmed,
         telefono: editTelefono.trim(),
         direccion: editDireccion.trim(),
         updated_at: new Date().toISOString()
-      }
+      };
 
       // Si el admin seleccionó un cobrador, actualizar la asignación
-      if (editCobradorId) updatePayload.cobrador_id = editCobradorId
+      if (editCobradorId) updatePayload.cobrador_id = editCobradorId;
 
       const { error } = await supabase
         .from('clientes')
         .update(updatePayload)
-        .eq('id', clienteSeleccionado.id)
+        .eq('id', clienteSeleccionado.id);
 
-      if (error) throw error
+      if (error) throw error;
 
       setAlertState({
         open: true,
         type: 'success',
         title: '¡Cliente actualizado!',
         message: `Los datos de ${editNombre} se actualizaron correctamente`
-      })
+      });
 
-      setShowEditModal(false)
-      setClienteSeleccionado(null)
-      loadData()
+      setShowEditModal(false);
+      setClienteSeleccionado(null);
+      loadData();
     } catch (error: any) {
-      console.error('Error al actualizar cliente:', error)
+      console.error('Error al actualizar cliente:', error);
       setAlertState({
         open: true,
         type: 'error',
         title: 'Error al actualizar',
         message: `No se pudo actualizar el cliente: ${error.message}`
-      })
+      });
     }
-  }
+  };
 
   const handleEliminarCliente = (cliente: ClienteAdmin) => {
     setClienteSeleccionado(cliente)

@@ -122,6 +122,36 @@ export default function CollectorOverview() {
       return
     }
 
+    const cedulaTrimmed = cedula.trim()
+    // Validar que no exista un cliente con la misma cédula que tenga un cobro activo
+    try {
+      const { data: existingActive, error: checkError } = await supabase
+        .from('clientes')
+        .select('id')
+        .eq('cedula', cedulaTrimmed)
+        .neq('estado', 'completado')
+
+      if (checkError) {
+        console.error('Error al verificar cédula existente:', checkError)
+        setAlertState({ open: true, type: 'error', title: 'Error', message: 'No se pudo verificar la cédula en la base de datos.' })
+        return
+      }
+
+      if (existingActive && existingActive.length > 0) {
+        setAlertState({
+          open: true,
+          type: 'error',
+          title: 'Cliente ya existe',
+          message: 'Ya existe un cliente con esa cédula y con un cobro activo. Revisa la lista de clientes.'
+        })
+        return
+      }
+    } catch (err) {
+      console.error('Error verificando cédula:', err)
+      setAlertState({ open: true, type: 'error', title: 'Error', message: 'No se pudo verificar la cédula.' })
+      return
+    }
+
     const monto = parseFloat(montoPrestamo)
     if (monto <= 0) {
       setAlertState({
