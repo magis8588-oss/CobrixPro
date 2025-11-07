@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Edit2, Trash2, X, Users, Search, DollarSign, Calendar, User, CreditCard, TrendingUp } from 'lucide-react'
 import AlertModal from '@/components/ui/AlertModal'
 import { supabase } from '@/lib/supabase'
-import { useConfigInteres } from '@/hooks/useConfigInteres'
+import { useCalculosPrestamo } from '@/hooks/useCalculosPrestamo'
 import { useAuth } from '@/contexts/AuthContext'
 
 interface ClienteAdmin {
@@ -53,7 +53,7 @@ export default function ClientesView() {
     message: ''
   })
 
-  const { monedaSymbol } = useConfigInteres()
+  const { monedaSymbol, calcularCuotas } = useCalculosPrestamo()
   const [clientes, setClientes] = useState<ClienteAdmin[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -118,20 +118,6 @@ export default function ClientesView() {
     } finally {
       setLoading(false)
     }
-  }
-
-  // Helper para calcular cuotas similar a la lógica del cobrador
-  const calcularCuotas = (monto: number, tipo: 'diario' | 'semanal' | 'quincenal') => {
-    const tasa = 0 // en admin no necesitamos interés dinámico aquí, se setea por defecto 0
-    const montoInteres = monto * tasa
-    const montoConInteres = monto + montoInteres
-
-    let cuotasTotales = 24
-    if (tipo === 'semanal') cuotasTotales = 10
-    if (tipo === 'quincenal') cuotasTotales = 5
-
-    const valorCuota = Math.ceil(montoConInteres / cuotasTotales)
-    return { cuotasTotales, valorCuota, montoConInteres, montoInteres }
   }
 
   const handleCreateLegacy = async () => {
@@ -886,9 +872,9 @@ export default function ClientesView() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Cobro</label>
                   <select value={createTipoCobro} onChange={e => setCreateTipoCobro(e.target.value as any)} className="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                    <option value="diario">Diario</option>
-                    <option value="semanal">Semanal</option>
-                    <option value="quincenal">Quincenal</option>
+                    <option value="diario">Diario (24 cuotas)</option>
+                    <option value="semanal">Semanal (4 cuotas)</option>
+                    <option value="quincenal">Quincenal (2 cuotas)</option>
                   </select>
                 </div>
                 <div>

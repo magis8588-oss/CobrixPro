@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { 
-  Users, 
+  Users,
   AlertCircle,
   UserPlus,
   X,
@@ -12,13 +12,13 @@ import {
 import { supabase } from '@/lib/supabase'
 import { Cliente } from '@/types'
 import { useAuth } from '@/contexts/AuthContext'
-import { useConfigInteres } from '@/hooks/useConfigInteres'
+import { useCalculosPrestamo } from '@/hooks/useCalculosPrestamo'
 import { calcularProximoCobro, calcularPrimerCobro } from '@/lib/fechasUtils'
 import AlertModal from '@/components/ui/AlertModal'
 
 export default function CollectorOverview() {
   const { user } = useAuth()
-  const { tasaInteres, monedaSymbol, loading: configLoading } = useConfigInteres()
+  const { tasaInteres, monedaSymbol, calcularCuotas, loading: configLoading } = useCalculosPrestamo()
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -84,30 +84,6 @@ export default function CollectorOverview() {
       console.error('Error loading data:', error)
     } finally {
       setLoading(false)
-    }
-  }
-
-  // Calcular cuotas según tipo de cobro
-  const calcularCuotas = (monto: number, tipo: 'diario' | 'semanal' | 'quincenal') => {
-    // Aplicar el interés configurado por el admin
-    const tasa = tasaInteres / 100
-    const montoInteres = monto * tasa
-    const montoTotal = monto + montoInteres
-    
-    // Número de cuotas según tipo de cobro
-    let cuotasTotales: number
-    if (tipo === 'diario') cuotasTotales = 24 // 24 días
-    else if (tipo === 'semanal') cuotasTotales = 10 // 10 semanas
-    else cuotasTotales = 5 // 5 quincenas
-    
-    // Dividir el TOTAL (préstamo + interés) entre las cuotas
-    const valorCuota = Math.ceil(montoTotal / cuotasTotales)
-    
-    return { 
-      cuotasTotales, 
-      valorCuota, 
-      montoConInteres: montoTotal,
-      montoInteres 
     }
   }
 
@@ -412,18 +388,16 @@ export default function CollectorOverview() {
 
   // Filtrar clientes para cobrar hoy
   const hoy = new Date()
- const fechaHoyString = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`
+  const fechaHoyString = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`
   
   const clientesParaCobrarHoy = clientes.filter(cliente => {
     // Extraer solo la parte de la fecha (YYYY-MM-DD) sin conversión de zona horaria
     const fechaCobroString = cliente.proximo_cobro.split('T')[0]
-    
-    
-    // Comparar las fechas como strings YYYY-MM-DD (sin conversión de zona horaria)
-    return fechaCobroString === fechaHoyString && cliente.cuotas_pendientes > 0
-  })
 
-  // Total de clientes activos (no completados ni cancelados)
+    // Mostrar clientes cuya fecha de cobro sea HOY o ANTERIOR (atrasados)
+    // Esto incluye cobros programados para hoy y los que están en mora
+    return fechaCobroString <= fechaHoyString && cliente.cuotas_pendientes > 0
+  })  // Total de clientes activos (no completados ni cancelados)
   const clientesActivos = clientes.filter(c => c.estado !== 'completado')
   // Clientes renovados este mes (usando fecha_inicio como referencia de renovación)
   const mesActual = hoy.getMonth()
@@ -727,8 +701,8 @@ export default function CollectorOverview() {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   >
                     <option value="diario">Diario (24 cuotas)</option>
-                    <option value="semanal">Semanal (10 cuotas)</option>
-                    <option value="quincenal">Quincenal (5 cuotas)</option>
+                    <option value="semanal">Semanal (4 cuotas)</option>
+                    <option value="quincenal">Quincenal (2 cuotas)</option>
                   </select>
                 </div>
               </div>
