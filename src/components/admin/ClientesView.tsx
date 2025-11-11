@@ -685,6 +685,24 @@ export default function ClientesView() {
                           })()}
                         </span>
                       </div>
+                      
+                      {/* Botones de acción */}
+                      <div className="flex gap-2 pt-3 mt-3 border-t border-gray-200">
+                        <button
+                          onClick={() => handleEditarCliente(cliente)}
+                          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                        >
+                          <Edit2 size={16} />
+                          <span className="text-sm font-medium">Editar</span>
+                        </button>
+                        <button
+                          onClick={() => handleEliminarCliente(cliente)}
+                          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                        >
+                          <Trash2 size={16} />
+                          <span className="text-sm font-medium">Eliminar</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
