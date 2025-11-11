@@ -497,19 +497,19 @@ export default function CollectorOverview() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleRegistrarPago(cliente.id)}
-                      className="flex items-center gap-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium text-sm"
                       title="Registrar Pago"
                     >
                       <CheckCircle size={18} />
-                      <span className="hidden sm:inline">Pago</span>
+                      <span>Pagó</span>
                     </button>
                     <button
                       onClick={() => handleNoPago(cliente.id)}
-                      className="flex items-center gap-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium text-sm"
                       title="No Pagó"
                     >
                       <XCircle size={18} />
-                      <span className="hidden sm:inline">No Pago</span>
+                      <span>No Pagó</span>
                     </button>
                     {cliente.cuotas_pendientes <= 3 && (
                       <button
