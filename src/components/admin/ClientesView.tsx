@@ -166,7 +166,33 @@ export default function ClientesView() {
     const { cuotasTotales, valorCuota } = calcularCuotas(monto, createTipoCobro)
 
     const fechaInicio = createFechaInicio || new Date().toISOString().split('T')[0]
-    const proximoCobro = createProximoCobro || fechaInicio
+    const cuotasPagadas = parseInt(createCuotasPagadas || '0', 10)
+    
+    // La fecha de próximo cobro es obligatoria
+    const proximoCobro = createProximoCobro
+    if (!proximoCobro) {
+      setAlertState({ 
+        open: true, 
+        type: 'warning', 
+        title: 'Fecha de próximo cobro requerida', 
+        message: 'Debes especificar la fecha del próximo cobro (cuota número ' + (cuotasPagadas + 1) + ')' 
+      })
+      return
+    }    // Determinar el estado basado en la próxima fecha de cobro
+    let estadoCliente: 'activo' | 'al_dia' | 'atrasado' | 'completado' | 'renovado' = 'al_dia'
+    if (cuotasPagadas >= cuotasTotales) {
+      estadoCliente = 'completado'
+    } else {
+      const hoy = new Date()
+      hoy.setHours(0, 0, 0, 0)
+      const fechaProximoCobro = new Date(proximoCobro)
+      fechaProximoCobro.setHours(0, 0, 0, 0)
+      
+      // Si la fecha de próximo cobro ya pasó, está atrasado
+      if (fechaProximoCobro < hoy) {
+        estadoCliente = 'atrasado'
+      }
+    }
 
     const clienteData = {
       nombre: createNombre.trim(),
@@ -177,11 +203,11 @@ export default function ClientesView() {
       tipo_cobro: createTipoCobro,
       valor_cuota: valorCuota,
       cuotas_totales: cuotasTotales,
-      cuotas_pagadas: parseInt(createCuotasPagadas || '0', 10),
-      saldo_pendiente: valorCuota * (cuotasTotales - (parseInt(createCuotasPagadas || '0', 10))),
+      cuotas_pagadas: cuotasPagadas,
+      saldo_pendiente: valorCuota * (cuotasTotales - cuotasPagadas),
       fecha_inicio: fechaInicio,
       proximo_cobro: proximoCobro,
-      estado: parseInt(createCuotasPagadas || '0', 10) >= cuotasTotales ? 'completado' : 'al_dia',
+      estado: estadoCliente,
       cobrador_id: createCobradorId || null,
     }
 
@@ -896,16 +922,36 @@ export default function ClientesView() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Cuotas pagadas</label>
-                  <input type="number" min={0} value={createCuotasPagadas} onChange={e => setCreateCuotasPagadas(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Cuotas ya pagadas</label>
+                  <input 
+                    type="number" 
+                    min={0} 
+                    value={createCuotasPagadas} 
+                    onChange={e => setCreateCuotasPagadas(e.target.value)} 
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg" 
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    ✅ Número de cuotas que el cliente YA pagó antes de migrar al sistema
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Fecha inicio (YYYY-MM-DD)</label>
                   <input type="date" value={createFechaInicio} onChange={e => setCreateFechaInicio(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Próximo cobro (YYYY-MM-DD)</label>
-                  <input type="date" value={createProximoCobro} onChange={e => setCreateProximoCobro(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Próximo cobro *
+                  </label>
+                  <input
+                    type="date"
+                    value={createProximoCobro}
+                    onChange={e => setCreateProximoCobro(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    � Fecha en que se cobrará la cuota #{createCuotasPagadas ? parseInt(createCuotasPagadas) + 1 : 1} (la siguiente cuota a cobrar)
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Asignar Cobrador</label>

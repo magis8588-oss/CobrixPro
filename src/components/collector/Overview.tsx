@@ -491,36 +491,36 @@ export default function CollectorOverview() {
                         Pendiente: <strong className="text-orange-600">{monedaSymbol}{cliente.saldo_pendiente.toLocaleString('es-CO')}</strong>
                       </span>
                     </div>
-                  </div>
 
-                  {/* Botones de acción */}
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleRegistrarPago(cliente.id)}
-                      className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium text-sm"
-                      title="Registrar Pago"
-                    >
-                      <CheckCircle size={18} />
-                      <span>Pagó</span>
-                    </button>
-                    <button
-                      onClick={() => handleNoPago(cliente.id)}
-                      className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium text-sm"
-                      title="No Pagó"
-                    >
-                      <XCircle size={18} />
-                      <span>No Pagó</span>
-                    </button>
-                    {cliente.cuotas_pendientes <= 3 && (
+                    {/* Botones de acción */}
+                    <div className="mt-3 flex gap-2">
                       <button
-                        onClick={() => abrirRenovar(cliente)}
-                        className="flex items-center gap-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                        title="Renovar Préstamo"
+                        onClick={() => handleRegistrarPago(cliente.id)}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                        title="Registrar Pago"
                       >
-                        <RefreshCw size={18} />
-                        <span className="hidden sm:inline">Renovar</span>
+                        <CheckCircle size={16} />
+                        <span>Pagó</span>
                       </button>
-                    )}
+                      <button
+                        onClick={() => handleNoPago(cliente.id)}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
+                        title="No Pagó"
+                      >
+                        <XCircle size={16} />
+                        <span>No Pagó</span>
+                      </button>
+                      {cliente.cuotas_pendientes <= 3 && (
+                        <button
+                          onClick={() => abrirRenovar(cliente)}
+                          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+                          title="Renovar Préstamo"
+                        >
+                          <RefreshCw size={16} />
+                          <span>Renovar</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
