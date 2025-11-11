@@ -16,7 +16,7 @@ export default function CollectorDashboard() {
         <CollectorHeader />
 
         <main className="flex-1 overflow-y-auto">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 lg:pt-2 pb-2">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 lg:pt-2 pb-2">
             <Routes>
               <Route index element={<CollectorOverview />} />
               <Route path="clientes" element={<ClientesList />} />

@@ -23,14 +23,19 @@ export default function CollectorSidebar() {
 
   return (
     <>
-      {/* Mobile Menu Button */}
-      <button
-        onClick={toggleSidebar}
-        className="lg:hidden fixed top-3 left-3 z-50 p-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg shadow-lg transition-colors"
-        aria-label="Toggle menu"
-      >
-        {isOpen ? <X size={20} /> : <Menu size={20} />}
-      </button>
+      {/* Mobile Fixed Header */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-primary-600 shadow-md">
+        <div className="flex items-center justify-between px-4 py-3">
+          <button
+            onClick={toggleSidebar}
+            className="p-2 rounded-lg bg-primary-700 hover:bg-primary-800 text-white transition-colors"
+            aria-label="Toggle menu"
+          >
+            {isOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+          <h1 className="text-xl font-bold text-white flex-1 text-center mr-10">CobrixPro</h1>
+        </div>
+      </div>
 
       {/* Overlay */}
       {isOpen && (
