@@ -75,9 +75,16 @@ export interface Transaccion {
 export interface EstadisticaCobrador {
   cobrador_id: string
   cobrador_nombre: string
-  meta_recaudacion: number
-  total_recaudado: number
-  clientes_nuevos: number
+  cobrador_email: string
   clientes_totales: number
+  clientes_nuevos: number
+  clientes_al_dia: number
+  clientes_mora: number
+  total_prestado: number
+  total_recaudado: number
+  saldo_pendiente: number
+  meta_recaudacion: number
   porcentaje_cumplimiento: number
+  cobros_hoy: number
+  actualizado_at: string
 }

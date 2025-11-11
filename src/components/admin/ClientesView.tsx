@@ -402,9 +402,9 @@ export default function ClientesView() {
 
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Clientes</h1>
           <p className="text-gray-600 mt-1">Vista general de todos los clientes del sistema</p>
@@ -418,8 +418,8 @@ export default function ClientesView() {
         )}
       </div>
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 md:p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Total Clientes</p>
@@ -430,7 +430,7 @@ export default function ClientesView() {
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 md:p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Total Prestado</p>
@@ -443,7 +443,7 @@ export default function ClientesView() {
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 md:p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Total Recaudado</p>
@@ -456,7 +456,7 @@ export default function ClientesView() {
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 md:p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Saldo Pendiente</p>
@@ -471,8 +471,8 @@ export default function ClientesView() {
         </div>
       </div>
       {/* Filtros */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 md:p-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
           {/* Búsqueda */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
@@ -533,7 +533,7 @@ export default function ClientesView() {
         ) : (
           <>
             {/* Vista Desktop */}
-            <div className="hidden lg:block overflow-x-auto">
+            <div className="hidden xl:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -628,7 +628,7 @@ export default function ClientesView() {
               </table>
             </div>
             {/* Vista Móvil/Tablet */}
-            <div className="lg:hidden divide-y divide-gray-200">
+            <div className="xl:hidden divide-y divide-gray-200">
               {clientesFiltrados.map((cliente) => {
                 const cuotasPendientes = cliente.cuotas_totales - cliente.cuotas_pagadas;
                 return (

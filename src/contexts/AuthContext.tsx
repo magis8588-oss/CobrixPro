@@ -75,9 +75,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut()
-    if (error) throw error
+    // Limpiar el estado local primero
     setUser(null)
+    
+    // Limpiar localStorage manualmente - método más confiable
+    const keys = Object.keys(localStorage)
+    keys.forEach(key => {
+      if (key.startsWith('sb-') || key.includes('supabase')) {
+        localStorage.removeItem(key)
+      }
+    })
+    
+    // Intentar cerrar sesión en Supabase en segundo plano (opcional)
+    // Usamos setTimeout para que no bloquee la UI y suprimimos errores
+    setTimeout(async () => {
+      try {
+        await supabase.auth.signOut({ scope: 'local' })
+      } catch {
+        // Sesión ya cerrada localmente, ignorar errores del servidor
+      }
+    }, 0)
   }
 
   return (

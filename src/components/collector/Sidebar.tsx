@@ -26,9 +26,10 @@ export default function CollectorSidebar() {
       {/* Mobile Menu Button */}
       <button
         onClick={toggleSidebar}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-primary-600 text-white rounded-lg shadow-lg"
+        className="lg:hidden fixed top-3 left-3 z-50 p-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg shadow-lg transition-colors"
+        aria-label="Toggle menu"
       >
-        {isOpen ? <X size={24} /> : <Menu size={24} />}
+        {isOpen ? <X size={20} /> : <Menu size={20} />}
       </button>
 
       {/* Overlay */}
