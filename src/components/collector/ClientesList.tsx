@@ -1,17 +1,15 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { Cliente } from '../../types'
 import { Search, CheckCircle, XCircle, RefreshCw, AlertCircle } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
-import { useConfigInteres } from '../../hooks/useConfigInteres'
-import { calcularProximoCobro } from '../../lib/fechasUtils'
+import { useCalculosPrestamo } from '../../hooks/useCalculosPrestamo'
+import { calcularProximoCobro, calcularPrimerCobro } from '../../lib/fechasUtils'
 import AlertModal from '../ui/AlertModal'
 
 export default function ClientesList() {
   const { user } = useAuth()
-  const navigate = useNavigate()
-  const { monedaSymbol, loading: configLoading } = useConfigInteres()
+  const { monedaSymbol, calcularCuotas, loading: configLoading } = useCalculosPrestamo()
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -25,6 +23,7 @@ export default function ClientesList() {
   // Estados para el modal de renovar
   const [showRenovarModal, setShowRenovarModal] = useState(false)
   const [clienteRenovar, setClienteRenovar] = useState<Cliente | null>(null)
+  const [nuevoMonto, setNuevoMonto] = useState('')
   
   // Estado para alertas
   const [alertState, setAlertState] = useState({
@@ -199,7 +198,105 @@ export default function ClientesList() {
   // Abrir modal de renovar
   const abrirRenovar = (cliente: Cliente) => {
     setClienteRenovar(cliente)
+    setNuevoMonto('')
     setShowRenovarModal(true)
+  }
+
+  // Renovar préstamo
+  const handleRenovar = async () => {
+    if (!clienteRenovar || !nuevoMonto) return
+
+    const montoNuevo = parseFloat(nuevoMonto)
+    if (montoNuevo <= 0) {
+      setAlertState({
+        open: true,
+        type: 'warning',
+        title: 'Monto inválido',
+        message: 'El monto debe ser mayor a cero'
+      })
+      return
+    }
+
+    // Validar que el nuevo monto sea mayor que la deuda
+    const deudaPendiente = clienteRenovar.saldo_pendiente
+    if (montoNuevo < deudaPendiente) {
+      setAlertState({
+        open: true,
+        type: 'warning',
+        title: 'Monto insuficiente',
+        message: `El nuevo préstamo debe ser mayor a la deuda pendiente de ${monedaSymbol}${deudaPendiente.toLocaleString('es-CO')}`
+      })
+      return
+    }
+
+    try {
+      // IMPORTANTE: El préstamo se renueva SOLO con el monto nuevo (no suma la deuda)
+      // El cobrador le entrega al cliente: montoNuevo - deudaPendiente
+      const montoAEntregar = montoNuevo - deudaPendiente
+      // Calcular cuotas sobre el MONTO NUEVO (no sobre monto + deuda)
+      const { cuotasTotales, valorCuota } = calcularCuotas(montoNuevo, clienteRenovar.tipo_cobro)
+      // Parsear fecha YYYY-MM-DD sin conversión de zona horaria
+      const fechaProximoCobroStr = calcularPrimerCobro(clienteRenovar.tipo_cobro)
+      const [year, month, day] = fechaProximoCobroStr.split('-').map(Number)
+      const fechaProximoCobro = new Date(year, month - 1, day)
+      // Usar fecha actual
+      const hoy = new Date()
+      const fechaInicioString = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`
+
+      const datosRenovacion = {
+        monto_prestamo: montoNuevo, // Solo el monto nuevo, NO suma la deuda
+        valor_cuota: valorCuota,
+        cuotas_totales: cuotasTotales,
+        cuotas_pagadas: 0,
+        saldo_pendiente: valorCuota * cuotasTotales,
+        fecha_inicio: fechaInicioString, // DATE format YYYY-MM-DD
+        proximo_cobro: fechaProximoCobroStr, // DATE format YYYY-MM-DD
+        estado: 'renovado',
+        updated_at: new Date().toISOString(),
+      }
+
+      const { error } = await supabase
+        .from('clientes')
+        .update(datosRenovacion)
+        .eq('id', clienteRenovar.id)
+
+      if (error) {
+        console.error('Error al renovar préstamo:', error)
+        setAlertState({
+          open: true,
+          type: 'error',
+          title: 'Error al renovar',
+          message: `No se pudo renovar el préstamo: ${error.message}`
+        })
+        return
+      }
+
+      // Mensaje informativo para el cobrador
+      setAlertState({
+        open: true,
+        type: 'success',
+        title: '¡Préstamo renovado!',
+        message: `💵 Nuevo préstamo: ${monedaSymbol}${montoNuevo.toLocaleString('es-CO')}\n` +
+                 `💳 Deuda descontada: ${monedaSymbol}${deudaPendiente.toLocaleString('es-CO')}\n` +
+                 `💰 Entregar al cliente: ${monedaSymbol}${montoAEntregar.toLocaleString('es-CO')}\n\n` +
+                 `📊 Total a pagar: ${monedaSymbol}${(valorCuota * cuotasTotales).toLocaleString('es-CO')}\n` +
+                 `📅 Primer cobro: ${fechaProximoCobro.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })}`
+      })
+
+      loadClientes()
+
+      setNuevoMonto('')
+      setClienteRenovar(null)
+      setShowRenovarModal(false)
+    } catch (error: any) {
+      console.error('Error inesperado:', error)
+      setAlertState({
+        open: true,
+        type: 'error',
+        title: 'Error inesperado',
+        message: `Ocurrió un error: ${error.message}`
+      })
+    }
   }
 
   const clientesFiltrados = clientes.filter(cliente => {
@@ -606,7 +703,7 @@ export default function ClientesList() {
         type={alertState.type}
       />
 
-      {/* Modal de Renovar - Redirige a Dashboard */}
+      {/* Modal de Renovar - Funcional */}
       {showRenovarModal && clienteRenovar && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-xl max-w-sm w-full">
@@ -619,6 +716,7 @@ export default function ClientesList() {
                 onClick={() => {
                   setShowRenovarModal(false)
                   setClienteRenovar(null)
+                  setNuevoMonto('')
                 }}
                 className="p-1 hover:bg-blue-100 rounded-lg transition-colors"
               >
@@ -640,14 +738,29 @@ export default function ClientesList() {
                 </div>
               </div>
 
-              <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-3 text-center">
-                <p className="text-sm text-blue-900 font-semibold mb-2">
-                  💡 Para renovar este préstamo
-                </p>
-                <p className="text-xs text-blue-700">
-                  Ve al <strong>Dashboard principal</strong> donde encontrarás el botón de renovar con todos los cálculos automáticos
-                </p>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Nuevo Monto del Préstamo
+                </label>
+                <input
+                  type="number"
+                  value={nuevoMonto}
+                  onChange={(e) => setNuevoMonto(e.target.value)}
+                  placeholder={`Mínimo ${monedaSymbol}${clienteRenovar.saldo_pendiente.toLocaleString('es-CO')}`}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                />
               </div>
+
+              {nuevoMonto && parseFloat(nuevoMonto) >= clienteRenovar.saldo_pendiente && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <p className="text-xs text-green-900 mb-1 font-semibold">Preview del Nuevo Préstamo</p>
+                  <div className="space-y-1 text-xs text-gray-700">
+                    <p>💵 Nuevo préstamo: <strong>{monedaSymbol}{parseFloat(nuevoMonto).toLocaleString('es-CO')}</strong></p>
+                    <p>💳 Deuda descontada: <strong>{monedaSymbol}{clienteRenovar.saldo_pendiente.toLocaleString('es-CO')}</strong></p>
+                    <p className="text-green-700 font-bold">💰 Entregar al cliente: {monedaSymbol}{(parseFloat(nuevoMonto) - clienteRenovar.saldo_pendiente).toLocaleString('es-CO')}</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 flex gap-2 justify-end">
@@ -655,21 +768,19 @@ export default function ClientesList() {
                 onClick={() => {
                   setShowRenovarModal(false)
                   setClienteRenovar(null)
+                  setNuevoMonto('')
                 }}
                 className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors text-sm"
               >
-                Cerrar
+                Cancelar
               </button>
               <button
-                onClick={() => {
-                  setShowRenovarModal(false)
-                  setClienteRenovar(null)
-                  navigate('/collector/dashboard')
-                }}
-                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-1.5 text-sm"
+                onClick={handleRenovar}
+                disabled={!nuevoMonto || parseFloat(nuevoMonto) < clienteRenovar.saldo_pendiente}
+                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center gap-1.5 text-sm"
               >
                 <RefreshCw size={14} />
-                <span>Ir al Dashboard</span>
+                <span>Renovar</span>
               </button>
             </div>
           </div>

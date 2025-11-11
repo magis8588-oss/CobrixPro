@@ -1,9 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
-import { 
-  LayoutDashboard, 
-  Users, 
-  DollarSign, 
-  History, 
+import {
+  LayoutDashboard,
+  Users,
   LogOut,
   Menu,
   X
@@ -19,8 +17,6 @@ export default function CollectorSidebar() {
   const menuItems = [
     { path: '/collector', icon: LayoutDashboard, label: 'Resumen' },
     { path: '/collector/clientes', icon: Users, label: 'Mis Clientes' },
-    { path: '/collector/pagos', icon: DollarSign, label: 'Registrar Pago' },
-    { path: '/collector/historial', icon: History, label: 'Historial' },
   ]
 
   const toggleSidebar = () => setIsOpen(!isOpen)
