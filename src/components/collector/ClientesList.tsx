@@ -65,29 +65,53 @@ export default function ClientesList() {
     }
   }
 
+  // Determinar si el cobro es HOY
+  const esCobroHoy = (cliente: Cliente): boolean => {
+    const hoy = new Date()
+    const hoyStr = hoy.toISOString().split('T')[0]
+    const proximoCobroStr = cliente.proximo_cobro.split('T')[0]
+    return proximoCobroStr === hoyStr
+  }
+
   // Calcular cuotas atrasadas
   const calcularCuotasAtrasadas = (cliente: Cliente): number => {
+    // IMPORTANTE: Las cuotas atrasadas se calculan SOLO mirando cuántas cuotas
+    // están pendientes de pago, NO desde la fecha de inicio
+    // El sistema de próximo_cobro ya maneja la lógica de acumulación
+    
+    // Comparar solo fechas en formato string para evitar problemas de zona horaria
     const hoy = new Date()
-    hoy.setHours(0, 0, 0, 0)
-    
-    const proximoCobro = new Date(cliente.proximo_cobro)
-    proximoCobro.setHours(0, 0, 0, 0)
-    
-    if (proximoCobro >= hoy) return 0
-    
-    const diasDiferencia = Math.floor((hoy.getTime() - proximoCobro.getTime()) / (1000 * 60 * 60 * 24))
-    
+    const hoyStr = hoy.toISOString().split('T')[0]
+    const proximoCobroStr = cliente.proximo_cobro.split('T')[0]
+
+    // Si el próximo cobro es hoy o futuro, no hay cuotas atrasadas
+    // Las cuotas pendientes se pagan cuando el cobrador registra el pago
+    if (proximoCobroStr >= hoyStr) return 0
+
+    // Si el próximo cobro ya pasó, calcular cuántos días/cuotas se atrasó
+    const [year1, month1, day1] = proximoCobroStr.split('-').map(Number)
+    const [year2, month2, day2] = hoyStr.split('-').map(Number)
+
+    const fecha1 = new Date(year1, month1 - 1, day1)
+    const fecha2 = new Date(year2, month2 - 1, day2)
+
+    const diasDiferencia = Math.floor((fecha2.getTime() - fecha1.getTime()) / (1000 * 60 * 60 * 24))
+
     const diasPorCuota: { [key: string]: number } = {
       'diario': 1,
       'semanal': 7,
       'quincenal': 15
     }
-    
-    const dias = diasPorCuota[cliente.tipo_cobro] || 7
-    return Math.floor(diasDiferencia / dias) + 1
-  }
 
-  // Abrir modal de pago
+    const dias = diasPorCuota[cliente.tipo_cobro] || 7
+    
+    // Calcular cuántas cuotas se atrasaron
+    // Si pasaron 3 días y es diario, son 3 cuotas atrasadas
+    const cuotasAtrasadas = Math.floor(diasDiferencia / dias)
+    
+    // Nunca retornar más cuotas atrasadas que las pendientes
+    return Math.min(cuotasAtrasadas, cliente.cuotas_pendientes)
+  }// Abrir modal de pago
   const abrirModalPago = (cliente: Cliente) => {
     const atrasadas = calcularCuotasAtrasadas(cliente)
     setClienteSeleccionado(cliente)
@@ -113,19 +137,13 @@ export default function ClientesList() {
     try {
       const nuevoCuotasPagadas = clienteSeleccionado.cuotas_pagadas + cuotasAPagar
       const nuevoSaldoPendiente = clienteSeleccionado.saldo_pendiente - (clienteSeleccionado.valor_cuota * cuotasAPagar)
-      
-      // Calcular próximo cobro avanzando las cuotas pagadas
-      let fechaProximoCobro = new Date(clienteSeleccionado.proximo_cobro)
-      const diasPorCuota: { [key: string]: number } = {
-        'diario': 1,
-        'semanal': 7,
-        'quincenal': 15
-      }
-      const diasAvance = diasPorCuota[clienteSeleccionado.tipo_cobro] * cuotasAPagar
-      fechaProximoCobro.setDate(fechaProximoCobro.getDate() + diasAvance)
-      
-      const fechaProximoCobroStr = calcularProximoCobro(fechaProximoCobro, clienteSeleccionado.tipo_cobro)
-      
+
+      // IMPORTANTE: El próximo cobro SIEMPRE es según el tipo de cobro desde HOY
+      // No importa cuántas cuotas pague, si paga hoy, mañana toca cobrar de nuevo
+      // Las cuotas adicionales solo reducen el total pendiente y acelera el fin del préstamo
+      const hoy = new Date()
+      const fechaProximoCobroStr = calcularProximoCobro(hoy, clienteSeleccionado.tipo_cobro)
+
       const datosActualizacion = {
         cuotas_pagadas: nuevoCuotasPagadas,
         saldo_pendiente: nuevoSaldoPendiente,
@@ -170,11 +188,11 @@ export default function ClientesList() {
       if (!cliente) return
 
       const fechaProximoCobroStr = calcularProximoCobro(new Date(), cliente.tipo_cobro)
-      
+
       const { error } = await supabase
         .from('clientes')
         .update({
-          estado: 'mora',
+          estado: 'atrasado',
           proximo_cobro: fechaProximoCobroStr,
           updated_at: new Date().toISOString()
         })
@@ -413,23 +431,31 @@ export default function ClientesList() {
             const cuotasAtrasadas = calcularCuotasAtrasadas(cliente)
             const progreso = ((cliente.cuotas_pagadas / cliente.cuotas_totales) * 100).toFixed(0)
             
+            // Determinar si es cobro de hoy o mora
+            const cobroHoy = esCobroHoy(cliente)
+            const estaMora = cliente.estado === 'mora' && !cobroHoy
+
             // Determinar color del borde según estado
-            const borderColor = 
+            const borderColor =
               cliente.estado === 'completado' ? 'border-gray-400' :
-              cliente.estado === 'mora' || cuotasAtrasadas > 0 ? 'border-red-500' :
+              estaMora ? 'border-red-500' :
+              cobroHoy && cliente.estado === 'mora' ? 'border-orange-500' :
               cliente.estado === 'renovado' ? 'border-blue-500' :
+              cliente.estado === 'mora' ? 'border-red-500' :
               'border-green-500'
-            
+
             return (
-              <div 
-                key={cliente.id} 
+              <div
+                key={cliente.id}
                 className={`bg-white rounded-lg shadow-sm border-l-4 ${borderColor} overflow-hidden hover:shadow-md transition-shadow`}
               >
                 {/* Header compacto */}
                 <div className={`px-3 py-2 border-b ${
                   cliente.estado === 'completado' ? 'bg-gradient-to-r from-gray-50 to-white border-gray-100' :
-                  cliente.estado === 'mora' || cuotasAtrasadas > 0 ? 'bg-gradient-to-r from-red-50 to-white border-red-100' :
+                  estaMora ? 'bg-gradient-to-r from-red-50 to-white border-red-100' :
+                  cobroHoy && cliente.estado === 'mora' ? 'bg-gradient-to-r from-orange-50 to-white border-orange-100' :
                   cliente.estado === 'renovado' ? 'bg-gradient-to-r from-blue-50 to-white border-blue-100' :
+                  cliente.estado === 'mora' ? 'bg-gradient-to-r from-red-50 to-white border-red-100' :
                   'bg-gradient-to-r from-green-50 to-white border-green-100'
                 }`}>
                   <div className="flex items-center justify-between gap-2">
@@ -442,29 +468,42 @@ export default function ClientesList() {
                       </p>
                     </div>
                     <div className="flex gap-1 items-center flex-shrink-0">
-                      <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${
-                        cliente.estado === 'completado' ? 'bg-gray-100 text-gray-700' :
-                        cliente.estado === 'mora' ? 'bg-red-100 text-red-700' :
-                        cliente.estado === 'renovado' ? 'bg-blue-100 text-blue-700' :
-                        'bg-green-100 text-green-700'
-                      }`}>
-                        {cliente.estado === 'completado' ? 'OK' :
-                         cliente.estado === 'mora' ? 'MORA' :
-                         cliente.estado === 'renovado' ? 'REN' :
-                         'OK'}
-                      </span>
+                    <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${
+                      cliente.estado === 'completado' ? 'bg-gray-100 text-gray-700' :
+                      estaMora ? 'bg-red-100 text-red-700' :
+                      cobroHoy ? 'bg-orange-100 text-orange-700' :
+                      cliente.estado === 'renovado' ? 'bg-blue-100 text-blue-700' :
+                      'bg-green-100 text-green-700'
+                    }`}>
+                      {cliente.estado === 'completado' ? 'OK' :
+                       estaMora ? 'MORA' :
+                       cobroHoy ? 'HOY' :
+                       cliente.estado === 'renovado' ? 'REN' :
+                       'OK'}
+                    </span>
                       <span className="px-1.5 py-0.5 rounded text-xs bg-blue-50 text-blue-700">
                         {cliente.tipo_cobro === 'diario' ? 'D' : cliente.tipo_cobro === 'semanal' ? 'S' : 'Q'}
                       </span>
                     </div>
                   </div>
                   
-                  {/* Alerta de atraso - compacta */}
+                  {/* Alerta de atraso/cobro hoy - compacta */}
                   {cuotasAtrasadas > 0 && cliente.estado !== 'completado' && (
-                    <div className="mt-1.5 bg-red-100 border border-red-300 rounded px-2 py-1 flex items-center gap-1">
-                      <AlertCircle size={12} className="text-red-700 flex-shrink-0" />
-                      <span className="text-xs font-bold text-red-900">
-                        {cuotasAtrasadas} atrasada{cuotasAtrasadas !== 1 ? 's' : ''}
+                    <div className={`mt-1.5 border rounded px-2 py-1 flex items-center gap-1 ${
+                      cobroHoy 
+                        ? 'bg-orange-100 border-orange-300' 
+                        : 'bg-red-100 border-red-300'
+                    }`}>
+                      <AlertCircle size={12} className={`flex-shrink-0 ${
+                        cobroHoy ? 'text-orange-700' : 'text-red-700'
+                      }`} />
+                      <span className={`text-xs font-bold ${
+                        cobroHoy ? 'text-orange-900' : 'text-red-900'
+                      }`}>
+                        {cobroHoy 
+                          ? '🕐 Cobro hoy' 
+                          : `${cuotasAtrasadas} atrasada${cuotasAtrasadas !== 1 ? 's' : ''}`
+                        }
                       </span>
                     </div>
                   )}
@@ -478,15 +517,18 @@ export default function ClientesList() {
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-gray-600">{cliente.cuotas_pagadas}/{cliente.cuotas_totales}</span>
                         <span className={`font-bold ${
-                          cuotasAtrasadas > 0 ? 'text-red-600' : 'text-blue-600'
+                          estaMora ? 'text-red-600' : 
+                          cobroHoy ? 'text-orange-600' : 
+                          'text-blue-600'
                         }`}>
                           {progreso}%
                         </span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-1.5">
-                        <div 
+                        <div
                           className={`h-full rounded-full ${
-                            cuotasAtrasadas > 0 ? 'bg-red-500' :
+                            estaMora ? 'bg-red-500' :
+                            cobroHoy ? 'bg-orange-500' :
                             parseInt(progreso) >= 75 ? 'bg-green-500' : 'bg-blue-500'
                           }`}
                           style={{ width: `${progreso}%` }}
@@ -504,25 +546,62 @@ export default function ClientesList() {
                       </p>
                     </div>
                     <div className={`${
-                      cliente.estado === 'completado' ? 'bg-gray-50' : 
-                      cuotasAtrasadas > 0 ? 'bg-red-50' : 'bg-green-50'
+                      cliente.estado === 'completado' ? 'bg-gray-50' :
+                      estaMora ? 'bg-red-50' : 
+                      cobroHoy ? 'bg-orange-50' : 
+                      'bg-green-50'
                     } rounded px-2 py-1`}>
                       <p className={`text-xs ${
                         cliente.estado === 'completado' ? 'text-gray-700' :
-                        cuotasAtrasadas > 0 ? 'text-red-700' : 'text-green-700'
+                        estaMora ? 'text-red-700' :
+                        cobroHoy ? 'text-orange-700' :
+                        'text-green-700'
                       }`}>
                         Saldo
                       </p>
                       <p className={`text-xs font-bold ${
                         cliente.estado === 'completado' ? 'text-gray-900' :
-                        cuotasAtrasadas > 0 ? 'text-red-900' : 'text-green-900'
+                        estaMora ? 'text-red-900' :
+                        cobroHoy ? 'text-orange-900' :
+                        'text-green-900'
                       }`}>
                         {monedaSymbol}{cliente.saldo_pendiente.toLocaleString('es-CO')}
                       </p>
                     </div>
                   </div>
 
-                  {/* Botones de acción compactos */}
+                  {/* Fecha de próximo cobro */}
+                  {cliente.estado !== 'completado' && (
+                    <div className={`mt-1.5 rounded px-2 py-1 border ${
+                      estaMora ? 'bg-red-50 border-red-200' : 
+                      cobroHoy ? 'bg-orange-50 border-orange-200' :
+                      'bg-purple-50 border-purple-200'
+                    }`}>
+                      <p className={`text-xs ${
+                        estaMora ? 'text-red-700' : 
+                        cobroHoy ? 'text-orange-700' :
+                        'text-purple-700'
+                      }`}>
+                        📅 Próximo cobro:
+                      </p>
+                      <p className={`text-xs font-bold ${
+                        estaMora ? 'text-red-900' : 
+                        cobroHoy ? 'text-orange-900' :
+                        'text-purple-900'
+                      }`}>
+                        {(() => {
+                          const [year, month, day] = cliente.proximo_cobro.split('T')[0].split('-').map(Number);
+                          const fecha = new Date(year, month - 1, day);
+                          return fecha.toLocaleDateString('es-CO', { 
+                            weekday: 'short',
+                            day: '2-digit', 
+                            month: 'short', 
+                            year: 'numeric' 
+                          });
+                        })()}
+                      </p>
+                    </div>
+                  )}                  {/* Botones de acción compactos */}
                   {cliente.estado !== 'completado' && (
                     <div className="grid grid-cols-2 gap-1.5 pt-1">
                       <button
@@ -536,12 +615,10 @@ export default function ClientesList() {
                       <button
                         onClick={() => handleNoPago(cliente.id)}
                         className="flex items-center justify-center gap-1 px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-medium"
-                      >
-                        <XCircle size={12} />
-                        <span>Mora</span>
-                      </button>
-                      
-                      {cliente.cuotas_pendientes <= 10 && cliente.cuotas_pendientes > 0 && (
+                        >
+                          <XCircle size={12} />
+                          <span>No Pagó</span>
+                        </button>                      {cliente.cuotas_pendientes <= 10 && cliente.cuotas_pendientes > 0 && (
                         <button
                           onClick={() => abrirRenovar(cliente)}
                           className="col-span-2 flex items-center justify-center gap-1 px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium"

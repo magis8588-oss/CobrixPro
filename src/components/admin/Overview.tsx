@@ -35,13 +35,43 @@ export default function Overview() {
 
   const fetchEstadisticas = async () => {
     try {
+      // Obtener estadísticas básicas
       const { data, error } = await supabase
         .from('estadisticas_cobrador')
         .select('*')
 
       if (error) throw error
 
-      setEstadisticas(data || [])
+      // Obtener todos los clientes para calcular correctamente los atrasados
+      const { data: clientes, error: clientesError } = await supabase
+        .from('clientes')
+        .select('cobrador_id, proximo_cobro, estado')
+
+      if (clientesError) throw clientesError
+
+      // Función para determinar si el cobro es hoy
+      const esCobroHoy = (proximoCobro: string): boolean => {
+        const hoy = new Date()
+        const hoyStr = hoy.toISOString().split('T')[0]
+        const proximoCobroStr = proximoCobro.split('T')[0]
+        return proximoCobroStr === hoyStr
+      }
+
+      // Ajustar las estadísticas con el cálculo correcto de atrasados
+      const estadisticasAjustadas = (data || []).map(stat => {
+        // Contar solo clientes que están atrasados pero NO tienen cobro hoy
+        const clientesCobrador = clientes?.filter(c => c.cobrador_id === stat.cobrador_id) || []
+        const clientesRealmenteAtrasados = clientesCobrador.filter(c => 
+          c.estado === 'atrasado' && !esCobroHoy(c.proximo_cobro)
+        ).length
+
+        return {
+          ...stat,
+          clientes_mora: clientesRealmenteAtrasados
+        }
+      })
+
+      setEstadisticas(estadisticasAjustadas)
     } catch (error) {
       console.error('Error al cargar estadísticas:', error)
     } finally {
@@ -205,9 +235,9 @@ export default function Overview() {
                 </tbody>
               </table>
             </div>
-            
-            {/* Vista móvil */}
-            <div className="md:hidden space-y-4 p-4">
+
+            {/* Vista móvil - Mejorada */}
+            <div className="md:hidden space-y-3 p-3">
               {estadisticas.map((stat) => {
                 const totalRecaudado = stat.total_recaudado || 0
                 const montoACobrarHoy = stat.cobros_hoy > 0 && stat.clientes_totales > 0
@@ -215,35 +245,60 @@ export default function Overview() {
                   : 0
 
                 return (
-                  <div key={stat.cobrador_id} className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-                    <h3 className="font-semibold text-gray-900 mb-3 text-base">{stat.cobrador_nombre || 'Sin nombre'}</h3>
-                    
-                    <div className="space-y-2.5">
-                      <div className="flex justify-between items-center py-1">
-                        <span className="text-sm text-gray-600">Total cobrado:</span>
-                        <span className="text-sm font-bold text-green-600">{monedaSymbol}{totalRecaudado.toLocaleString('es-CO')}</span>
+                  <div key={stat.cobrador_id} className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                    {/* Header */}
+                    <div className="bg-gradient-to-r from-primary-50 to-primary-100 px-3 py-2.5 border-b border-primary-200">
+                      <h3 className="font-semibold text-gray-900 text-base flex items-center gap-2">
+                        <Users size={16} className="text-primary-600" />
+                        {stat.cobrador_nombre || 'Sin nombre'}
+                      </h3>
+                    </div>
+
+                    {/* Content */}
+                    <div className="p-3 space-y-2">
+                      {/* Grid 2 columnas - Totales */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="bg-green-50 rounded-lg p-2.5 border border-green-200">
+                          <p className="text-xs text-green-700 mb-0.5">Total cobrado</p>
+                          <p className="text-sm font-bold text-green-700">{monedaSymbol}{totalRecaudado.toLocaleString('es-CO')}</p>
+                        </div>
+                        <div className="bg-blue-50 rounded-lg p-2.5 border border-blue-200">
+                          <p className="text-xs text-blue-700 mb-0.5">Total prestado</p>
+                          <p className="text-sm font-bold text-blue-700">{monedaSymbol}{(stat.total_prestado || 0).toLocaleString('es-CO')}</p>
+                        </div>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-500">Total prestado:</span>
-                        <span className="text-sm font-semibold text-blue-600">{monedaSymbol}{(stat.total_prestado || 0).toLocaleString('es-CO')}</span>
+
+                      {/* Cobros de hoy */}
+                      <div className="bg-orange-50 rounded-lg p-2.5 border border-orange-200">
+                        <div className="flex justify-between items-center mb-1">
+                          <div className="flex items-center gap-1.5">
+                            <Calendar size={14} className="text-orange-600" />
+                            <p className="text-xs text-orange-700 font-medium">Para cobrar hoy</p>
+                          </div>
+                          <span className="text-sm font-bold text-orange-700">{stat.cobros_hoy || 0} clientes</span>
+                        </div>
+                        <div className="flex justify-between items-center pt-1.5 border-t border-orange-200">
+                          <p className="text-xs text-orange-600">Monto:</p>
+                          <span className="text-sm font-bold text-orange-700">{monedaSymbol}{montoACobrarHoy.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</span>
+                        </div>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-500">Para cobrar hoy:</span>
-                        <span className="text-sm font-medium">{stat.cobros_hoy || 0} clientes</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-500">Monto a cobrar:</span>
-                        <span className="text-sm font-semibold text-orange-600">{monedaSymbol}{montoACobrarHoy.toLocaleString('es-CO', { maximumFractionDigits: 0 })}</span>
-                      </div>
-                      <div className="flex justify-between items-center pt-2 mt-2 border-t">
-                        <span className="text-sm text-gray-500">Atrasados:</span>
-                        <span className={`text-sm font-semibold ${stat.clientes_mora > 0 ? 'text-red-600' : 'text-gray-400'}`}>
-                          {stat.clientes_mora || 0}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-500">Total clientes:</span>
-                        <span className="text-sm font-medium">{stat.clientes_totales || 0} ({stat.clientes_al_dia || 0} al día)</span>
+
+                      {/* Grid inferior - Estado */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className={`rounded-lg p-2.5 border ${stat.clientes_mora > 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'}`}>
+                          <div className="flex items-center gap-1 mb-0.5">
+                            <AlertCircle size={12} className={stat.clientes_mora > 0 ? 'text-red-600' : 'text-gray-400'} />
+                            <p className={`text-xs ${stat.clientes_mora > 0 ? 'text-red-700' : 'text-gray-500'}`}>Atrasados</p>
+                          </div>
+                          <p className={`text-sm font-bold ${stat.clientes_mora > 0 ? 'text-red-700' : 'text-gray-400'}`}>
+                            {stat.clientes_mora || 0}
+                          </p>
+                        </div>
+                        <div className="bg-gray-50 rounded-lg p-2.5 border border-gray-200">
+                          <p className="text-xs text-gray-600 mb-0.5">Total clientes</p>
+                          <p className="text-sm font-bold text-gray-900">{stat.clientes_totales || 0}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">{stat.clientes_al_dia || 0} al día</p>
+                        </div>
                       </div>
                     </div>
                   </div>

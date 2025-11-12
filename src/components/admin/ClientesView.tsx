@@ -63,6 +63,14 @@ export default function ClientesView() {
   // lista completa de cobradores (usuarios con rol 'cobrador') para asignar desde admin
   const [cobradoresList, setCobradoresList] = useState<{ id: string; nombre: string }[]>([])
 
+  // Función para determinar si el cobro es hoy
+  const esCobroHoy = (proximoCobro: string): boolean => {
+    const hoy = new Date()
+    const hoyStr = hoy.toISOString().split('T')[0]
+    const proximoCobroStr = proximoCobro.split('T')[0]
+    return proximoCobroStr === hoyStr
+  }
+
   // Crear cliente legado (admin)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [createNombre, setCreateNombre] = useState('')
@@ -178,7 +186,8 @@ export default function ClientesView() {
         message: 'Debes especificar la fecha del próximo cobro (cuota número ' + (cuotasPagadas + 1) + ')' 
       })
       return
-    }    // Determinar el estado basado en la próxima fecha de cobro
+    }    
+    // Determinar el estado basado en cuotas que debieron pagarse
     let estadoCliente: 'activo' | 'al_dia' | 'atrasado' | 'completado' | 'renovado' = 'al_dia'
     if (cuotasPagadas >= cuotasTotales) {
       estadoCliente = 'completado'
@@ -188,9 +197,18 @@ export default function ClientesView() {
       const fechaProximoCobro = new Date(proximoCobro)
       fechaProximoCobro.setHours(0, 0, 0, 0)
       
-      // Si la fecha de próximo cobro ya pasó, está atrasado
+      // IMPORTANTE: La primera cuota se cobra al día siguiente de la fecha de inicio
+      // No el día que se entrega el dinero
+      
+      // Si el próximo cobro ya pasó (es menor que hoy), está atrasado
       if (fechaProximoCobro < hoy) {
         estadoCliente = 'atrasado'
+      }
+      // Si el próximo cobro es hoy, verificar si hay cuotas pendientes de días anteriores
+      else if (fechaProximoCobro.getTime() === hoy.getTime() && cuotasPagadas === 0) {
+        // Si es el primer cobro programado para hoy y no ha pagado nada, está al día
+        // porque la entrega fue ayer o antes, y hoy es su primera fecha de cobro
+        estadoCliente = 'al_dia'
       }
     }
 
@@ -397,24 +415,31 @@ export default function ClientesView() {
     totalPendiente: clientes.reduce((sum, c) => sum + c.saldo_pendiente, 0),
   }
 
-  const getEstadoBadge = (estado: string) => {
+  const getEstadoBadge = (cliente: ClienteAdmin) => {
+    const cobroHoy = esCobroHoy(cliente.proximo_cobro)
+    const estaMora = cliente.estado === 'atrasado' && !cobroHoy
+
     const badges = {
       al_dia: 'bg-green-100 text-green-800 border-green-200',
-      atrasado: 'bg-red-100 text-red-800 border-red-200',
+      atrasado: estaMora 
+        ? 'bg-red-100 text-red-800 border-red-200' 
+        : 'bg-orange-100 text-orange-800 border-orange-200',
       renovado: 'bg-blue-100 text-blue-800 border-blue-200',
       completado: 'bg-gray-100 text-gray-800 border-gray-200',
     }
-    return badges[estado as keyof typeof badges] || 'bg-gray-100 text-gray-800 border-gray-200'
+    return badges[cliente.estado as keyof typeof badges] || 'bg-gray-100 text-gray-800 border-gray-200'
   }
 
-  const getEstadoTexto = (estado: string) => {
+  const getEstadoTexto = (cliente: ClienteAdmin) => {
+    const cobroHoy = esCobroHoy(cliente.proximo_cobro)
+
     const textos = {
       al_dia: 'Al Día',
-      atrasado: 'Atrasado',
+      atrasado: cobroHoy ? 'Cobro Hoy' : 'Atrasado',
       renovado: 'Renovado',
       completado: 'Completado',
     }
-    return textos[estado as keyof typeof textos] || estado
+    return textos[cliente.estado as keyof typeof textos] || cliente.estado
   }
 
   const getTipoCobroColor = (tipo: string) => {
@@ -623,12 +648,12 @@ export default function ClientesView() {
                               return fecha.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
                             })()}
                           </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full border ${getEstadoBadge(cliente.estado)}`}>
-                            {getEstadoTexto(cliente.estado)}
-                          </span>
-                        </td>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full border ${getEstadoBadge(cliente)}`}>
+                              {getEstadoTexto(cliente)}
+                            </span>
+                          </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-center gap-2">
                             <button
@@ -664,8 +689,8 @@ export default function ClientesView() {
                         <h3 className="font-semibold text-gray-900">{cliente.nombre}</h3>
                         <p className="text-sm text-gray-500">{cliente.cedula}</p>
                       </div>
-                      <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full border ${getEstadoBadge(cliente.estado)}`}>
-                        {getEstadoTexto(cliente.estado)}
+                      <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full border ${getEstadoBadge(cliente)}`}>
+                        {getEstadoTexto(cliente)}
                       </span>
                     </div>
                     <div className="space-y-2">

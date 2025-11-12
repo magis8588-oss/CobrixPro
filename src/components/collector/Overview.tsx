@@ -49,6 +49,14 @@ export default function CollectorOverview() {
   // Form state para renovar
   const [nuevoMonto, setNuevoMonto] = useState('')
 
+  // Función para determinar si el cobro es hoy
+  const esCobroHoy = (proximoCobro: string): boolean => {
+    const hoy = new Date()
+    const hoyStr = hoy.toISOString().split('T')[0]
+    const proximoCobroStr = proximoCobro.split('T')[0]
+    return proximoCobroStr === hoyStr
+  }
+
   useEffect(() => {
     loadData()
   }, [user])
@@ -410,12 +418,12 @@ export default function CollectorOverview() {
     return false
   })
   const stats = {
-     totalClientes: clientes.length,
-     clientesAlDia: clientes.filter(c => c.estado === 'al_dia' || c.estado === 'renovado').length,
-     clientesEnMora: clientes.filter(c => c.estado === 'mora').length,
-     clientesActivos: clientesActivos.length,
-     renovadosEsteMes: renovadosEsteMes.length,
-     cobrosHoy: clientesParaCobrarHoy.length,
+    totalClientes: clientes.length,
+    clientesAlDia: clientes.filter(c => c.estado === 'al_dia' || c.estado === 'renovado').length,
+    clientesEnMora: clientes.filter(c => c.estado === 'mora' && !esCobroHoy(c.proximo_cobro)).length,
+    clientesActivos: clientesActivos.length,
+    renovadosEsteMes: renovadosEsteMes.length,
+    cobrosHoy: clientesParaCobrarHoy.length,
   }
 
   if (loading || configLoading) {
@@ -466,9 +474,17 @@ export default function CollectorOverview() {
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         cliente.estado === 'al_dia' || cliente.estado === 'renovado'
                           ? 'bg-green-100 text-green-700'
-                          : 'bg-red-100 text-red-700'
+                          : esCobroHoy(cliente.proximo_cobro)
+                            ? 'bg-orange-100 text-orange-700'
+                            : 'bg-red-100 text-red-700'
                       }`}>
-                        {cliente.estado === 'renovado' ? 'Renovado' : cliente.estado === 'al_dia' ? 'Al Día' : 'Mora'}
+                        {cliente.estado === 'renovado' 
+                          ? 'Renovado' 
+                          : cliente.estado === 'al_dia' 
+                            ? 'Al Día' 
+                            : esCobroHoy(cliente.proximo_cobro)
+                              ? 'Cobro Hoy'
+                              : 'Mora'}
                       </span>
                       <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
                         {cliente.tipo_cobro}
